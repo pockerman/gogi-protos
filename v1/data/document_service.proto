@@ -1,0 +1,48 @@
+syntax = "proto3";
+package gogi.v1;
+
+option go_package = "gogi/gogi/v1;gogiv1";
+
+
+message DocumentMetadata{
+    string name = 1;
+}
+
+message ListDocumentsRequest {
+  string index_name = 1;
+}
+
+message ListDocumentsResponse{
+    repeated DocumentMetadata documents = 1;
+}
+
+message GetDocumentRequest{
+    string index_name = 1;
+    string document_id = 2;
+
+}
+
+message GetDocumentResponse{
+    DocumentMetadata document = 1;
+
+}
+
+message DeleteDocumentRequest{
+    string index_name = 1;
+    string document_id = 2;
+
+}
+
+message DeleteDocumentResponse{
+    string response = 1;
+}
+
+
+service DocumentServer{
+
+    rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
+    rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
+    rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
+
+}
+
