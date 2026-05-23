@@ -1,0 +1,55 @@
+syntax = "proto3";
+package gogi.v1;
+
+service IndexService {
+	rpc CreateIndex(CreateIndexRequest) returns (IndexResponse);
+    rpc GetIndex(GetIndexRequest) returns (IndexResponse);
+    rpc ListIndexes(ListIndexesRequest) returns (ListIndexesResponse);
+    rpc DeleteIndex(DeleteIndexRequest) returns (DeleteIndexResponse);
+}
+
+// Types for the index serice
+message IndexConfig {
+    string name = 1;
+    string embedding_model = 2;
+    int32 embedding_dimensions = 3;
+    string chunking_strategy = 4;
+    int32 chunk_size = 5;
+    int32 chunk_overlap = 6;
+    map<string, string> metadata_schema = 7;
+}
+
+
+message IndexResponse {
+    string name = 1;
+    IndexConfig config = 2;
+    string owner = 3;
+    int32 document_count = 4;
+    int32 total_chunks = 5;
+    string created_at = 6;
+    string last_ingested_at = 7;
+}
+
+message CreateIndexRequest {
+    IndexConfig config = 1;
+    string owner = 2;
+}
+
+message GetIndexRequest {
+    string index_name = 1;
+}
+
+message ListIndexesRequest {}
+
+message ListIndexesResponse {
+    repeated IndexResponse indexes = 1;
+}
+
+message DeleteIndexRequest {
+    string index_name = 1;
+}
+
+message DeleteIndexResponse {
+    bool success = 1;
+    int32 chunks_deleted = 2;
+}
