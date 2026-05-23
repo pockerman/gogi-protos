@@ -1,6 +1,8 @@
 syntax = "proto3";
 package gogi.v1;
 
+option go_package = "gogi/gogi/v1;gogiv1";
+
 service IndexService {
 	rpc CreateIndex(CreateIndexRequest) returns (IndexResponse);
     rpc GetIndex(GetIndexRequest) returns (IndexResponse);
