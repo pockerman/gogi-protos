@@ -5,7 +5,12 @@ option go_package = "gogi/gogi/v1;gogiv1";
 
 
 message DocumentMetadata{
-    string name = 1;
+    string document_id = 1;
+    string index_name = 2;
+    string filename = 3;
+    int32 chunk_count = 4;
+    int32 page_count = 5;
+    int32 word_count = 64
 }
 
 message ListDocumentsRequest {
