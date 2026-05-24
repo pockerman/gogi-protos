@@ -10,7 +10,7 @@ message DocumentMetadata{
     string filename = 3;
     int32 chunk_count = 4;
     int32 page_count = 5;
-    int32 word_count = 64
+    int32 word_count = 6;
 }
 
 message ListDocumentsRequest {
