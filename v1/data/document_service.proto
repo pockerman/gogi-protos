@@ -63,7 +63,7 @@ message IngestDocumentJobResponse{
   string error_message = 7;
 
 }
-message GetIngestDocumentStatusRequest{
+message GetIngestDocumentJobRequest{
     string job_id = 1;
 }
 
@@ -74,7 +74,7 @@ service DocumentServer{
     rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
     rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
     rpc IngestDocument(IngestDocumentRequest) returns (IngestDocumentJobResponse);
-    rpc GetDocumentIngestStatus(GetIngestDocumentStatusRequest) returns (IngestDocumentJob);
+    rpc GetDocumentIngestJob(GetIngestDocumentStatusRequest) returns (IngestDocumentJobResponse);
 
 }
 
