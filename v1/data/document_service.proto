@@ -50,7 +50,10 @@ message IngestDocumentRequest{
     string content_type = 4;
     map<string, string> metadata = 5;
     string document_id = 6;
-
+    string chunk_strategy = 7;
+    string chunk_model = 8;
+    int32 batch_size = 9;
+    
 }
 
 message IngestDocumentJobResponse{
