@@ -74,7 +74,7 @@ service DocumentServer{
     rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
     rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
     rpc IngestDocument(IngestDocumentRequest) returns (IngestDocumentJobResponse);
-    rpc GetDocumentIngestJob(GetIngestDocumentStatusRequest) returns (IngestDocumentJobResponse);
+    rpc GetDocumentIngestJob(GetIngestDocumentJobRequest) returns (IngestDocumentJobResponse);
 
 }
 
