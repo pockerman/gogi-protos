@@ -28,7 +28,7 @@ message IndexResponse {
     string index_name = 2;
     string owner = 3;
     string created_at = 4;
-    string last_ingested_at = 5;
+    string last_updated_at = 5;
 }
 
 message CreateIndexRequest {
