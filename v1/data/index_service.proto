@@ -5,7 +5,8 @@ option go_package = "gogi/gogi/v1;gogiv1";
 
 service IndexService {
 	rpc CreateIndex(CreateIndexRequest) returns (IndexResponse);
-    rpc GetIndex(GetIndexRequest) returns (IndexResponse);
+    rpc GetIndexByName(GetIndexByNameRequest) returns (IndexResponse);
+    rpc GetIndexById(GetIndexByIdRequest) returns (IndexResponse);
     rpc ListIndexes(ListIndexesRequest) returns (ListIndexesResponse);
     rpc DeleteIndex(DeleteIndexRequest) returns (DeleteIndexResponse);
 }
@@ -23,22 +24,24 @@ message IndexConfig {
 
 
 message IndexResponse {
-    string name = 1;
-    IndexConfig config = 2;
+    string id = 1;
+    string index_name = 2;
     string owner = 3;
-    int32 document_count = 4;
-    int32 total_chunks = 5;
-    string created_at = 6;
-    string last_ingested_at = 7;
+    string created_at = 4;
+    string last_ingested_at = 5;
 }
 
 message CreateIndexRequest {
-    IndexConfig config = 1;
+    string index_name = 1;
     string owner = 2;
 }
 
-message GetIndexRequest {
+message GetIndexByNameRequest {
     string index_name = 1;
+}
+
+message GetIndexByIdRequest {
+    string index_id = 1;
 }
 
 message ListIndexesRequest {}
