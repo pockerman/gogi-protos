@@ -9,7 +9,8 @@ service IndexService {
     rpc GetIndexById(GetIndexByIdRequest) returns (IndexResponse);
     rpc ListIndexes(ListIndexesRequest) returns (ListIndexesResponse);
     rpc DeleteIndexByName(DeleteIndexByNameRequest) returns (DeleteIndexResponse);
-        rpc DeleteIndexById(DeleteIndexByIdRequest) returns (DeleteIndexResponse);
+    rpc DeleteIndexById(DeleteIndexByIdRequest) returns (DeleteIndexResponse);
+    rpc DeleteOwnerIndexes(DeleteOwnerIndexesRequest) returns (DeleteIndexResponse);
 }
 
 // Types for the index serice
@@ -59,6 +60,10 @@ message DeleteIndexByNameRequest {
 
 message DeleteIndexByIdRequest {
    string index_id = 1;	
+}
+
+message DeleteOwnerIndexesRequest {
+   string owner_name = 1;
 }
 
 message DeleteIndexResponse {
