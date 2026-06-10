@@ -1,0 +1,80 @@
+syntax = "proto3";
+package gogi.v1;
+
+option go_package = "gogi/gogi/v1;gogiv1";
+
+
+service ModelService {
+
+  // Core inference
+  rpc Run(LLMRunRequest) returns (LLMRunResponse);
+  rpc RunStream(LLMRunRequest) returns (stream LLMStreamChunkResponse);
+
+  // Discovery
+  // list the llms the platform supports
+  rpc ListLLMs(ListLLMsRequest) returns (ListLLMsResponse);
+  // Get the LLM capabilities
+  rpc GetLLMCapabilities(GetLLMCapabilitiesRequest) returns (LLMCapabilitiesResponse);
+  
+  // get the providers supported by the platform
+  rpc GetLLMProviders(GetLLMProvidersRequest) returns (LLMProvidersResponse);
+
+  // Custom model registry
+  // Register a user model
+  rpc RegisterLLM(RegisterLLMRequest) returns (RegisterLLMResponse);
+  
+  // Get all the user registered models
+  rpc ListRegisteredLLMs(ListRegisteredLLMsRequest) returns (ListRegisteredLLMsResponse);
+
+  // Get the status of the LLM
+  rpc GetLLMStatus(GetLLMStatusRequest) returns (LLMStatusResponse);
+
+}
+
+message LLMRunRequest{
+}
+
+message LLMRunResponse{
+}
+
+message LLMStreamChunkResponse{
+}
+
+message ListLLMsRequest{
+}
+
+message ListLLMsResponse{
+}
+
+message GetLLMCapabilitiesRequest{
+}
+
+message LLMCapabilitiesResponse{
+}
+
+message GetLLMProvidersRequest{
+}
+
+message LLMProvidersResponse{
+}
+
+message RegisterLLMRequest{
+}
+
+message RegisterLLMResponse{
+}
+
+message ListRegisteredLLMsRequest{
+}
+
+message ListRegisteredLLMsResponse{
+}
+
+message GetLLMStatusRequest{
+}
+
+message LLMStatusResponse{
+}
+
+
+ 
