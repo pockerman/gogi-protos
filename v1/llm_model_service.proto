@@ -98,7 +98,7 @@ message ModelInfo {
 }
 
 message GetLLMCapabilitiesRequest{
-  string model = 1
+  string model = 1;
 }
 
 
@@ -115,7 +115,7 @@ message GetLLMProvidersRequest{
 }
 
 message LLMProvidersResponse{
-	repeated Provider providers;
+	repeated Provider providers = 1;
 }
 
 message RegisterLLMRequest{
