@@ -109,9 +109,11 @@ message LLMCapabilitiesResponse{
 
 message Provider{
   string name = 1;
+  repeated string models = 2;
 }
 
 message GetLLMProvidersRequest{
+   bool fetch_models = 1;
 }
 
 message LLMProvidersResponse{
