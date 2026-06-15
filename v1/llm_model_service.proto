@@ -109,7 +109,7 @@ message LLMCapabilitiesResponse{
 
 message Provider{
   string name = 1;
-  repeated string models
+  repeated string models = 2;
 }
 
 message GetLLMProvidersRequest{
