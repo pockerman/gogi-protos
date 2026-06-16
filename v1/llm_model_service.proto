@@ -132,7 +132,7 @@ message RegisterLLMRequest{
 message RegisterLLMResponse{
     string name = 1;
     string status = 2;
-    google.protobuf.Timestamp  registered_at = 3;
+    string  registered_at = 3;
 }
 
 
