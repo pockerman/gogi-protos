@@ -1,6 +1,8 @@
 syntax = "proto3";
 package gogi.v1;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "gogi/gogi/v1;gogiv1";
 
 
@@ -130,7 +132,7 @@ message RegisterLLMRequest{
 message RegisterLLMResponse{
     string name = 1;
     string status = 2;
-    string registered_at = 3;
+    google.protobuf.Timestamp  registered_at = 3;
 }
 
 
