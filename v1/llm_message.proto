@@ -1,9 +1,9 @@
 syntax = "proto3";
 package gogi.v1;
 
-import "v1/llm_tool.proto";
-
 option go_package = "gogi/gogi/v1;gogiv1";
+
+import "v1/llm_tool.proto";
 
 // A message sent to an LLM
 message LLMMessage{
