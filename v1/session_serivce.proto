@@ -66,7 +66,7 @@ message GetMessagesRequest {
 }
 
 message GetMessagesResponse {
-    repeated Message messages = 1;
+    repeated LLMMessage messages = 1;
     int32 total_count = 2;
 }
 
