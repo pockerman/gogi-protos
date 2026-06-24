@@ -1,0 +1,16 @@
+syntax = "proto3";
+package gogi.v1;
+
+import "v1/llm_tool.proto";
+
+option go_package = "gogi/gogi/v1;gogiv1";
+
+// A message sent to an LLM
+message LLMMessage{
+    string role = 1;
+    optional string content = 2;
+    repeated ToolCall tool_calls = 3;
+    optional string tool_call_id = 4;
+    optional string name = 5;
+    int64 timestamp = 6;
+}

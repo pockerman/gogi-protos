@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package gogi.v1;
+
+import "v1/llm_function.proto";
+
+option go_package = "gogi/gogi/v1;gogiv1";
+
+// Tool definition
+message ToolDefinition {
+    string type = 1;
+    LLMFunctionDefinition function = 2;
+}
+
+message ToolCall {
+    string id = 1;
+    string type = 2;
+    ToolCallFunction function = 3;
+}
+
+message ToolCallFunction {
+    string name = 1;
+    string arguments = 2;
+}
+
