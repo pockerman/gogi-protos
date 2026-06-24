@@ -33,11 +33,6 @@ service LLMModelServer {
 
 }
 
-// A message sent to an LLM
-//message LLMMessage{
-//    string role = 1;
-//    optional string content = 2;
-//}
 
 // Specifies how to call an LLM
 message LLMRunRequestConfig{
