@@ -5,7 +5,7 @@ option go_package = "gogi/gogi/v1;gogiv1";
 
 import "v1/llm_message.proto";
 
-service SessionServer {
+service LLMSessionServer {
 
    rpc GetOrCreateSession(GetOrCreateSessionRequest) returns (GetOrCreateSessionResponse);
    rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
