@@ -7,5 +7,5 @@ protoc \
     -I=. \
     --go_out=. \
     --go-grpc_out=. \
-    v1/data/*.proto \
-    v1/*.proto
+    gogi/v1/data/*.proto \
+    gogi/v1/*.proto
