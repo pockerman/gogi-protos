@@ -3,8 +3,8 @@ package gogi.v1;
 
 option go_package = "gogi/gogi/v1;gogiv1";
 
-import "v1/llm_tool.proto";
-import "v1/llm_message.proto";
+import "gogi/v1/llm_tool.proto";
+import "gogi/v1/llm_message.proto";
 
 service LLMModelServer {
 
