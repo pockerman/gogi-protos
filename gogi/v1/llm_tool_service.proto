@@ -4,6 +4,8 @@ package gogi.v1;
 option go_package = "gogi/gogi/v1;gogiv1";
 
 import "gogi/v1/rate_limits.proto";
+import "gogi/v1/llm_tool.proto";
+import "gogi/v1/execution_limits.proto";
 
 service ToolServer {
 
@@ -22,56 +24,10 @@ service ToolServer {
 }
 
 
-message ToolDefinition {
-    string name = 1;
-    string version = 2;
-    string owner = 3;
-    string description = 4;
-    string parameters_json = 5;
-    string returns_json = 6;
-    ToolBehavior behavior = 7;
-    RateLimits rate_limits = 8;
-    CostMetadata cost = 9;
-    repeated string required_permissions = 10;
-    repeated string capabilities = 11;
-    repeated string tags = 12;
-    string endpoint = 13;
-    string credential_ref = 14;
-    ExecutionLimits execution_limits = 15;
-    // if set, ExecuteTool routes the call through the MCP
-    // client wired to this server instead of the HTTP endpoint.
-    string mcp_server_url = 16;
-}
-
-// Operational metadata
-message ToolBehavior {
-    bool is_read_only = 1;
-    bool is_idempotent = 2;
-    bool requires_confirmation = 3;
-    int32 typical_latency_ms = 4;
-    repeated string side_effects = 5;
-}
-
-
-
-message CostMetadata {
-    float estimated_cost_usd = 1;
-    string billing_category = 2;
-}
-
-
-message ExecutionLimits {
-    int32 timeout_seconds = 1;
-    int32 memory_limit_mb = 2;
-    int32 cpu_limit_millicores = 3;
-    int32 max_response_size_kb = 4;
-    int32 max_retries = 5;
-}
-
 
 
 message RegisterToolRequest {
-    ToolDefinition tool = 1;
+    ToolServiceDefinition tool = 1;
 }
 
 message RegisterToolResponse {
@@ -90,7 +46,7 @@ message DiscoverToolsRequest {
 }
 
 message DiscoverToolsResponse {
-    repeated ToolDefinition tools = 1;
+    repeated ToolServiceDefinition tools = 1;
     map<string, float> relevance_scores = 2;
 }
 

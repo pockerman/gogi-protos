@@ -1,0 +1,9 @@
+syntax = "proto3";
+package gogi.v1;
+
+option go_package = "gogi/gogi/v1;gogiv1";
+
+message CostMetadata {
+    float estimated_cost_usd = 1;
+    string billing_category = 2;
+}
