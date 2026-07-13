@@ -1,0 +1,10 @@
+syntax = "proto3";
+package gogi.v1;
+
+option go_package = "gogi/gogi/v1;gogiv1";
+
+message RateLimits {
+    int32 requests_per_minute = 1;
+    int32 requests_per_session = 2;
+    int32 daily_limit = 3;
+}

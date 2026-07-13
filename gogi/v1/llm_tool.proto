@@ -3,6 +3,9 @@ syntax = "proto3";
 package gogi.v1;
 
 import "gogi/v1/llm_function.proto";
+import "gogi/v1/rate_limits.proto";
+import "gogi/v1/execution_limits.proto";
+import "gogi/v1/cost_metadata.proto";
 
 option go_package = "gogi/gogi/v1;gogiv1";
 
@@ -10,6 +13,37 @@ option go_package = "gogi/gogi/v1;gogiv1";
 message ToolDefinition {
     string type = 1;
     LLMFunctionDefinition function = 2;
+}
+
+// Another Tool definition TODO: Refine these
+message ToolServiceDefinition {
+    string name = 1;
+    string version = 2;
+    string owner = 3;
+    string description = 4;
+    string parameters_json = 5;
+    string returns_json = 6;
+    ToolBehavior behavior = 7;
+    RateLimits rate_limits = 8;
+    CostMetadata cost = 9;
+    repeated string required_permissions = 10;
+    repeated string capabilities = 11;
+    repeated string tags = 12;
+    string endpoint = 13;
+    string credential_ref = 14;
+    ExecutionLimits execution_limits = 15;
+    // if set, ExecuteTool routes the call through the MCP
+    // client wired to this server instead of the HTTP endpoint.
+    string mcp_server_url = 16;
+}
+
+// Operational metadata
+message ToolBehavior {
+    bool is_read_only = 1;
+    bool is_idempotent = 2;
+    bool requires_confirmation = 3;
+    int32 typical_latency_ms = 4;
+    repeated string side_effects = 5;
 }
 
 message ToolCall {

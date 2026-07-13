@@ -1,0 +1,13 @@
+syntax = "proto3";
+package gogi.v1;
+
+option go_package = "gogi/gogi/v1;gogiv1";
+
+message ExecutionLimits {
+    int32 timeout_seconds = 1;
+    int32 memory_limit_mb = 2;
+    int32 cpu_limit_millicores = 3;
+    int32 max_response_size_kb = 4;
+    int32 max_retries = 5;
+}
+
