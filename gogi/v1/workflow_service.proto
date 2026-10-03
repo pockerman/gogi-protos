@@ -32,8 +32,6 @@ service WorkflowServer {
     rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
 }
 
-// Listing 8.22
-
 message ScalingConfig {
     int32 min_replicas = 1;
     int32 max_replicas = 2;
