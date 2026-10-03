@@ -71,6 +71,29 @@ message GetIngestDocumentJobRequest{
     string job_id = 1;
 }
 
+message SearchDocumentsRequest{
+    string index_name = 1;
+    string query = 2;
+    int32 top_k = 3;
+    string embeddings_model = 4;
+    string embeddings_client = 5;
+    repeated string document_ids = 6;
+    map<string, string> metadata_filter = 7;
+}
+
+message DocumentChunk{
+    string chunk_id = 1;
+    string document_id = 2;
+    string index_name = 3;
+    string content = 4;
+    double score = 5;
+    map<string, string> metadata = 6;
+}
+
+message SearchDocumentsResponse{
+    repeated DocumentChunk chunks = 1;
+}
+
 
 service DocumentServer{
 
@@ -79,6 +102,7 @@ service DocumentServer{
     rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
     rpc IngestDocument(IngestDocumentRequest) returns (IngestDocumentJobResponse);
     rpc GetDocumentIngestJob(GetIngestDocumentJobRequest) returns (IngestDocumentJobResponse);
+    rpc SearchDocuments(SearchDocumentsRequest) returns (SearchDocumentsResponse);
 
 }
 
