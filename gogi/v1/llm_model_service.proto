@@ -70,6 +70,8 @@ message LLMStreamChunkResponse{
     string model = 2;
     optional string finish_reason = 3;
     optional TokenUsage usage = 4;
+    // the tools the model calls, complete; sent with the last chunk
+    repeated ToolCall tool_calls = 5;
 }
 
 message ListLLMsRequest{
