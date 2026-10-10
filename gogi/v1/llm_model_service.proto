@@ -122,6 +122,9 @@ message RegisterLLMRequest{
     string endpoint = 2;
     string health_check = 3;
     string adapter_type = 4;
+    // names a credential held by the platform's credential store, e.g. "ml-inference-prod";
+    // the secret itself never appears in the registration. Empty if the endpoint needs none
+    string credential_ref = 5;
 }
 
 message RegisterLLMResponse{
@@ -138,6 +141,7 @@ message RegisteredLLM {
     string status = 4;
     string registered_at = 5;
     string adapter_type = 6;
+    string credential_ref = 7;
 }
 
 message ListRegisteredLLMsRequest{
