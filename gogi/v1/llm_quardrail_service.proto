@@ -2,58 +2,115 @@
 //
 // Book: "Designing AI Systems" (https://www.manning.com/books/designing-ai-systems)
 //   Listing 6.19: GuardrailsService gRPC contract
+//   Listings 6.21-6.26: input, tool argument, output, behavioural and human approval policies
 syntax = "proto3";
 package gogi.v1;
 
 option go_package = "gogi/gogi/v1;gogiv1";
 
 
-
+// The guardrails service evaluates content and actions against named policies:
+// input policies before content reaches a model, output policies before a response
+// reaches a user, and tool validation, behavioural and human approval policies
+// before an action, e.g. a tool call, runs. Every evaluation is recorded for audit.
+//
+// Keys of the context maps that policies use: user_id, session_id, turn_id and
+// permissions (comma-separated). Callers may add any other keys.
 service GuardrailsService {
     rpc ValidateInput(ValidateInputRequest) returns (ValidateInputResponse);
     rpc FilterOutput(FilterOutputRequest) returns (FilterOutputResponse);
     rpc CheckPolicy(CheckPolicyRequest) returns (CheckPolicyResponse);
     rpc ReportViolation(ReportViolationRequest) returns (ReportViolationResponse);
+
+    // Policy registry
+    rpc AddPolicy(AddPolicyRequest) returns (AddPolicyResponse);
+    rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+    rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+    rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+
+    // Audit
+    rpc ListViolations(ListViolationsRequest) returns (ListViolationsResponse);
+}
+
+// A rule that triggered during an evaluation
+message TriggeredRule {
+    string policy_name = 1;
+    // the rule's type, e.g. prompt_injection, pii_detection, in_list, max_per_session
+    string rule_type = 2;
+    // what the rule does: block, redirect, warn, redact, log_only or require_approval
+    string action = 3;
+    string severity = 4;
+    // what triggered, e.g. "credit_card" or "departure_date: must be at least 1 day ahead"
+    string detail = 5;
+    // true if the policy is in shadow mode: the rule is recorded but not enforced
+    bool shadow = 6;
 }
 
 message ValidateInputRequest {
     string content = 1;
+    // built-in checks to run with their default action, block: prompt_injection, pii_detection
     repeated string checks = 2;
     map<string, string> context = 3;
+    // the input policies to apply, by name
+    repeated string policy_names = 4;
+    // applies the input policies of the application, and those of every application
+    string application_id = 5;
 }
 
 message ValidateInputResponse {
     bool allowed = 1;
     string denial_reason = 2;
     repeated string triggered_checks = 3;
+    repeated TriggeredRule triggered_rules = 4;
+    // the message to show the user, from the rule that blocked or redirected the input
+    string user_message = 5;
+    string evaluation_id = 6;
 }
-
-
 
 message FilterOutputRequest {
     string content = 1;
+    // built-in filters to apply with their default action, redact: pii_redaction
     repeated string filters = 2;
     map<string, string> context = 3;
+    // the output policies to apply, by name
+    repeated string policy_names = 4;
+    // applies the output policies of the application, and those of every application
+    string application_id = 5;
 }
 
 message FilterOutputResponse {
+    // the content to return to the user: redacted, or the fallback if blocked
     string content = 1;
     bool modified = 2;
     repeated string applied_filters = 3;
+    // true if a rule blocked the response; content is then the rule's fallback
+    bool blocked = 4;
+    repeated TriggeredRule triggered_rules = 5;
+    string evaluation_id = 6;
 }
 
 message CheckPolicyRequest {
+    // the tool validation, behavioural or human approval policy to apply
     string policy_name = 1;
+    // the action to check, e.g. a tool name
     string action = 2;
     map<string, string> context = 3;
+    // the arguments of the action, e.g. a tool call's, as a JSON object
     string arguments_json = 4;
+    // instead of policy_name: applies the application's policies, and those of every application
+    string application_id = 5;
 }
 
 message CheckPolicyResponse {
     bool allowed = 1;
     string denial_reason = 2;
     repeated string violated_rules = 3;
+    // what to do instead, e.g. require_approval when a human approval gate applies
     string suggested_action = 4;
+    repeated TriggeredRule triggered_rules = 5;
+    // the role that must approve the action, if a human approval gate applies
+    string approval_role = 6;
+    string evaluation_id = 7;
 }
 
 message ReportViolationRequest {
@@ -62,9 +119,95 @@ message ReportViolationRequest {
     string severity = 3;
     map<string, string> context = 4;
     string details = 5;
+    // the evaluation that found the violation, if any
+    string evaluation_id = 6;
 }
 
 message ReportViolationResponse {
     string violation_id = 1;
     bool recorded = 2;
+}
+
+// A named policy. Its rules depend on its type; see the guardrails service documentation
+message Policy {
+    string name = 1;
+    // input, output, tool_validation, behavioral or human_gate
+    string type = 2;
+    // the application the policy applies to; empty means every application
+    string application_id = 3;
+    // enforce (default) or shadow: a policy in shadow mode is evaluated and recorded, not enforced
+    string mode = 4;
+    // the rules, as a JSON array of objects
+    string rules_json = 5;
+    string description = 6;
+    // a label the policy's author gives the version, e.g. 1.2.0
+    string version = 7;
+    // incremented by the platform every time the policy changes
+    int32 revision = 8;
+    // api, or file for policies loaded from the service's policy directory
+    string source = 9;
+    int64 created_at = 10;   // unix millis
+    int64 updated_at = 11;   // unix millis
+}
+
+message AddPolicyRequest {
+    // adds the policy, or replaces the policy with the same name
+    Policy policy = 1;
+}
+
+message AddPolicyResponse {
+    Policy policy = 1;
+    // rules that are accepted but not enforced yet, e.g. those that need a classifier
+    repeated string warnings = 2;
+}
+
+message GetPolicyRequest {
+    string name = 1;
+}
+
+message GetPolicyResponse {
+    Policy policy = 1;
+}
+
+message ListPoliciesRequest {
+    // filters; empty means all
+    string application_id = 1;
+    string type = 2;
+}
+
+message ListPoliciesResponse {
+    repeated Policy policies = 1;
+}
+
+message DeletePolicyRequest {
+    string name = 1;
+}
+
+message DeletePolicyResponse {
+    bool deleted = 1;
+}
+
+message Violation {
+    string violation_id = 1;
+    string policy_name = 2;
+    string action = 3;
+    string severity = 4;
+    map<string, string> context = 5;
+    string details = 6;
+    string evaluation_id = 7;
+    int64 created_at = 8;   // unix millis
+}
+
+message ListViolationsRequest {
+    // filters; empty means all
+    string policy_name = 1;
+    string severity = 2;
+    // only violations recorded at or after this time, in unix millis
+    int64 since = 3;
+    // the most violations to return, newest first; 0 means 100
+    int32 limit = 4;
+}
+
+message ListViolationsResponse {
+    repeated Violation violations = 1;
 }
