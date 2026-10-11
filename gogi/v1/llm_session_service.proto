@@ -5,6 +5,9 @@ option go_package = "gogi/gogi/v1;gogiv1";
 
 import "gogi/v1/llm_message.proto";
 
+// The session service keeps the conversations of users with AI applications: sessions,
+// their messages, and the memories a model or an application saves about a user. It also
+// assembles the context of the next model call from a long conversation, within a token budget.
 service LLMSessionServer {
 
    rpc GetOrCreateSession(GetOrCreateSessionRequest) returns (GetOrCreateSessionResponse);
@@ -18,96 +21,163 @@ service LLMSessionServer {
    rpc GetMemory(GetMemoryRequest) returns (GetMemoryResponse);
    rpc DeleteMemory(DeleteMemoryRequest) returns (DeleteMemoryResponse);
    rpc ClearUserMemory(ClearUserMemoryRequest) returns (ClearUserMemoryResponse);
- 
+
 }
 
 
 message GetOrCreateSessionRequest {
     string user_id = 1;
+    // the session to resume; if it does not exist, it is created with this id. Not set
+    // creates a session with a new id. A session of another user is never returned
     optional string session_id = 2;
 }
 
 message Session {
     string session_id = 1;
     string user_id = 2;
-    int64 created_at = 3;
-    int64 updated_at = 4;
+    int64 created_at = 3;   // unix millis
+    int64 updated_at = 4;   // unix millis, the last time messages were added
+    int32 message_count = 5;
 }
 
 message GetOrCreateSessionResponse {
     Session session = 1;
+    // true if the session was created by this call
+    bool created = 2;
 }
 
 message ListSessionsRequest {
     string user_id = 1;
+    // the most sessions to return, most recently active first; 0 means all
+    int32 limit = 2;
+    int32 offset = 3;
 }
 
 message ListSessionsResponse {
     repeated Session sessions = 1;
+    // the number of sessions of the user
+    int32 total_count = 2;
 }
 
 
 message AddMessagesRequest {
     string session_id = 1;
+    // stored together, in order: all of them or none. A message without a timestamp gets
+    // the time it is stored
     repeated LLMMessage messages = 2;
 }
 
 message AddMessagesResponse {
     bool success = 1;
+    // the number of messages added
     int32 message_count = 2;
+    // the number of messages of the session
+    int32 total_count = 3;
 }
 
 
 message GetMessagesRequest {
     string session_id = 1;
+    // without a strategy: a page of the history, oldest first. With the truncate strategy:
+    // at most this many of the most recent messages
     optional int32 limit = 2;
     optional int32 offset = 3;
+    // how to assemble the context of the next model call:
+    //   none or empty  the history, paginated with limit and offset
+    //   truncate       the most recent messages that fit the token budget
+    //   summarize      a summary of the older messages, then the most recent ones
+    //   hierarchical   the user's memories, then the summary, then the most recent messages
     optional string strategy = 4;
+    // the estimated tokens the context may take; not set means the service's default
+    optional int32 token_budget = 5;
+    // what the summary must keep, e.g. "dates, amounts and decisions"
+    optional string summary_focus = 6;
 }
 
 message GetMessagesResponse {
+    // the page of the history, or the assembled context, ready to send to a model: a
+    // summary or memories come first, as system messages
     repeated LLMMessage messages = 1;
+    // the number of messages of the session
     int32 total_count = 2;
+    // the strategy applied; it differs from the requested one when the service falls back,
+    // e.g. to truncate when no summary model is configured
+    string strategy = 3;
+    // the number of stored messages the context leaves out, or covers with the summary
+    int32 omitted_count = 4;
+    // the number of older messages the summary covers
+    int32 summarized_count = 5;
+    string summary = 6;
+    // the estimated tokens of the messages returned
+    int32 estimated_tokens = 7;
+    // what the caller should know about how the context was assembled
+    repeated string notes = 8;
 }
 
 message DeleteSessionRequest {
     string session_id = 1;
+    // also delete the memories saved for this session; user-level memories are kept
+    bool delete_memories = 2;
 }
 
 message DeleteSessionResponse {
     bool success = 1;
 }
 
+// A fact saved about a user, for every session or for one
+message MemoryEntry {
+    string key = 1;
+    // a JSON document
+    string value = 2;
+    // the session the memory belongs to; empty for a memory of the user, in every session
+    string session_id = 3;
+    int64 created_at = 4;   // unix millis
+    int64 updated_at = 5;   // unix millis
+}
+
 // Memory operations
 message SaveMemoryRequest {
     string user_id = 1;
     string key = 2;
+    // a JSON document, e.g. "\"window seat\"" or "{\"currency\": \"EUR\"}"
     string value = 3;
+    // saves the memory for this session only; not set saves it for the user
     optional string session_id = 4;
+    // saves only if the memory was last updated at this time (unix millis), or does not
+    // exist if 0; a conflicting save fails with ABORTED. Not set always saves
+    optional int64 expected_updated_at = 5;
 }
 
 message SaveMemoryResponse {
     bool success = 1;
+    MemoryEntry entry = 2;
 }
 
 message GetMemoryRequest {
     string user_id = 1;
     optional string key = 2;
+    // only this session's memories; not set returns the memories of every scope
     optional string session_id = 3;
 }
 
 message GetMemoryResponse {
+    // key to JSON value; if a key is saved in several scopes, the most recently updated
+    // value is given, a session's on a tie. entries has every one
     map<string, string> memories = 1;
+    repeated MemoryEntry entries = 2;
 }
 
 message DeleteMemoryRequest {
     string user_id = 1;
     string key = 2;
+    // deletes the key of this session only; not set deletes it in every scope
     optional string session_id = 3;
 }
 
 message DeleteMemoryResponse {
     bool success = 1;
+    // the number of memories deleted
+    int32 count = 2;
 }
 
 message ClearUserMemoryRequest {
