@@ -1,0 +1,520 @@
+syntax = "proto3";
+package gogi.v1;
+
+option go_package = "gogi/gogi/v1;gogiv1";
+
+// The observability service collects the telemetry of the platform and of the applications
+// built on it, and makes it queryable:
+//   - traces: the spans every service records for a request, assembled by trace id, with
+//     generations, the spans of LLM calls, carrying model, tokens and cost
+//   - scores: quality signals attached to traces, spans or generations
+//   - structured logs and metrics
+//   - cost reports, budgets and the health of the platform's services
+//
+// Services report telemetry in batches, off the request path; ingestion never fails a request.
+// Timestamps are unix millis.
+service ObservabilityService {
+    rpc IngestLogs(IngestLogsRequest) returns (IngestLogsResponse);
+    rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
+
+    rpc RecordMetrics(RecordMetricsRequest) returns (RecordMetricsResponse);
+    rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
+
+    rpc RecordSpan(RecordSpanRequest) returns (RecordSpanResponse);
+    rpc RecordGeneration(RecordGenerationRequest) returns (RecordGenerationResponse);
+    rpc GetTrace(GetTraceRequest) returns (Trace);
+    rpc QueryTraces(QueryTracesRequest) returns (QueryTracesResponse);
+    rpc QueryGenerations(QueryGenerationsRequest) returns (QueryGenerationsResponse);
+
+    rpc RecordScore(RecordScoreRequest) returns (RecordScoreResponse);
+    rpc QueryScores(QueryScoresRequest) returns (QueryScoresResponse);
+
+    rpc GetCostReport(CostReportRequest) returns (CostReport);
+    rpc SetBudgetAlert(SetBudgetAlertRequest) returns (SetBudgetAlertResponse);
+    rpc GetBudgetStatus(GetBudgetStatusRequest) returns (BudgetStatus);
+    rpc ListBudgetAlerts(ListBudgetAlertsRequest) returns (ListBudgetAlertsResponse);
+    rpc DeleteBudgetAlert(DeleteBudgetAlertRequest) returns (DeleteBudgetAlertResponse);
+
+    rpc GetServiceHealth(ServiceHealthRequest) returns (ServiceHealthResponse);
+}
+
+// --- Logs ---
+
+enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    SEVERITY_DEBUG = 1;
+    SEVERITY_INFO = 2;
+    SEVERITY_WARNING = 3;
+    SEVERITY_ERROR = 4;
+    SEVERITY_CRITICAL = 5;
+}
+
+// A structured log event, linked to the span that emitted it
+message LogEvent {
+    // assigned by the service if empty
+    string event_id = 1;
+    string trace_id = 2;
+    string span_id = 3;
+    int64 timestamp = 4;
+    string service = 5;
+    Severity severity = 6;
+    // the category of the event, e.g. model_fallback or guardrail_evaluation
+    string event_type = 7;
+    string message = 8;
+    map<string, string> attributes = 9;
+    map<string, double> numeric_attributes = 10;
+    string workflow_id = 11;
+    string user_id = 12;
+}
+
+message IngestLogsRequest {
+    repeated LogEvent events = 1;
+}
+
+message IngestLogsResponse {
+    int32 accepted = 1;
+    // why events were rejected, by index, e.g. "event 3: timestamp is required"
+    repeated string rejected = 2;
+}
+
+message QueryLogsRequest {
+    // filters; empty matches everything
+    string trace_id = 1;
+    string span_id = 2;
+    string service = 3;
+    string event_type = 4;
+    // events of this severity or higher
+    Severity min_severity = 5;
+    string workflow_id = 6;
+    string user_id = 7;
+    // events whose attributes have all these values
+    map<string, string> attributes = 8;
+    int64 start_time = 9;
+    int64 end_time = 10;
+    // the most events to return, newest first; 0 means 100, at most 1000
+    int32 limit = 11;
+    // the next_cursor of the previous page
+    string cursor = 12;
+}
+
+message QueryLogsResponse {
+    repeated LogEvent events = 1;
+    // empty when there are no more events
+    string next_cursor = 2;
+}
+
+// --- Metrics ---
+
+enum MetricType {
+    METRIC_TYPE_UNSPECIFIED = 0;
+    // a value that accumulates, e.g. requests or cost; names end in _total by convention
+    METRIC_TYPE_COUNTER = 1;
+    // a measurement whose distribution matters, e.g. latency; names end in _ms or _score by convention
+    METRIC_TYPE_HISTOGRAM = 2;
+}
+
+message MetricPoint {
+    // e.g. gogi.models.request_duration_ms
+    string name = 1;
+    // unspecified infers it from the name: _total is a counter, anything else a histogram
+    MetricType type = 2;
+    double value = 3;
+    map<string, string> labels = 4;
+    int64 timestamp = 5;
+    string service = 6;
+}
+
+message RecordMetricsRequest {
+    repeated MetricPoint points = 1;
+}
+
+message RecordMetricsResponse {
+    int32 accepted = 1;
+    repeated string rejected = 2;
+}
+
+message QueryMetricsRequest {
+    string name = 1;
+    int64 start_time = 2;
+    int64 end_time = 3;
+    // points whose labels have all these values
+    map<string, string> label_filters = 4;
+    // a series per combination of these labels' values
+    repeated string group_by = 5;
+    // the width of a sample's time bucket; 0 means one sample for the whole range
+    int64 step_ms = 6;
+    // sum, count, avg, min, max, p50, p90, p95 or p99; empty means sum for counters, avg otherwise
+    string aggregation = 7;
+}
+
+message MetricSample {
+    // the start of the bucket
+    int64 timestamp = 1;
+    double value = 2;
+    // the number of points in the bucket
+    int64 count = 3;
+}
+
+message MetricSeries {
+    map<string, string> labels = 1;
+    repeated MetricSample samples = 2;
+}
+
+message QueryMetricsResponse {
+    repeated MetricSeries series = 1;
+    string aggregation = 2;
+}
+
+// --- Tracing ---
+
+enum SpanStatus {
+    SPAN_STATUS_UNSPECIFIED = 0;
+    SPAN_STATUS_OK = 1;
+    SPAN_STATUS_ERROR = 2;
+}
+
+// Something that happened at a point in a span
+message SpanEvent {
+    string name = 1;
+    int64 timestamp = 2;
+    map<string, string> attributes = 3;
+}
+
+// A unit of work of a request in one service. Spans of a request share its trace_id and
+// nest through parent_span_id
+message Span {
+    string trace_id = 1;
+    string span_id = 2;
+    // empty for the root span of a trace
+    string parent_span_id = 3;
+    string service = 4;
+    // service.method, e.g. llms.Run
+    string operation = 5;
+    int64 start_time = 6;
+    int64 end_time = 7;
+    SpanStatus status = 8;
+    string error_message = 9;
+    map<string, string> attributes = 10;
+    map<string, double> numeric_attributes = 11;
+    repeated SpanEvent events = 12;
+
+    // the request's metadata; any span may set it, usually the root. The trace takes the
+    // first non-empty value of each, and the root span's input and output
+    string session_id = 13;
+    string workflow_id = 14;
+    string user_id = 15;
+    string input = 16;
+    string output = 17;
+    repeated string tags = 18;
+}
+
+// A span of an LLM call, with the fields queries about models need
+message Generation {
+    Span span = 1;
+    // the model and provider that answered
+    string model = 2;
+    string provider = 3;
+    // the model the caller asked for; differs from model after a fallback
+    string requested_model = 4;
+    int32 prompt_tokens = 5;
+    int32 completion_tokens = 6;
+    // not set means the platform prices the generation from its price table
+    optional double cost_usd = 7;
+    bool cache_hit = 8;
+    bool fallback_used = 9;
+    double time_to_first_token_ms = 10;
+    // output: true if the platform priced the generation
+    bool cost_estimated = 11;
+}
+
+message RecordSpanRequest {
+    repeated Span spans = 1;
+}
+
+message RecordSpanResponse {
+    int32 accepted = 1;
+    repeated string rejected = 2;
+}
+
+message RecordGenerationRequest {
+    repeated Generation generations = 1;
+}
+
+message RecordGenerationResponse {
+    int32 accepted = 1;
+    repeated string rejected = 2;
+}
+
+// A request's trace, assembled from the spans every service recorded for it
+message Trace {
+    string trace_id = 1;
+    string session_id = 2;
+    repeated Span spans = 3;
+    repeated Generation generations = 4;
+    string input = 5;
+    string output = 6;
+    double total_duration_ms = 7;
+    double total_cost_usd = 8;
+    int32 total_tokens = 9;
+    repeated Score scores = 10;
+    repeated string tags = 11;
+    string workflow_id = 12;
+    string user_id = 13;
+    int64 start_time = 14;
+    int64 end_time = 15;
+    // spans and generations
+    int32 span_count = 16;
+    int32 error_count = 17;
+}
+
+message GetTraceRequest {
+    string trace_id = 1;
+}
+
+message QueryTracesRequest {
+    int64 start_time = 1;
+    int64 end_time = 2;
+    string session_id = 3;
+    string workflow_id = 4;
+    string user_id = 5;
+    // traces with a span of this service
+    string service = 6;
+    string tag = 7;
+    double min_duration_ms = 8;
+    double min_cost_usd = 9;
+    // only traces with a failed span
+    bool errors_only = 10;
+    // traces with a numeric score of this name within the bounds, e.g. helpfulness below 0.5
+    string score_name = 11;
+    optional double min_score = 12;
+    optional double max_score = 13;
+    // recent (default), duration or cost; descending
+    string order_by = 14;
+    // 0 means 50, at most 500
+    int32 limit = 15;
+    string cursor = 16;
+}
+
+message QueryTracesResponse {
+    // the traces, without their spans, generations and scores
+    repeated Trace traces = 1;
+    string next_cursor = 2;
+}
+
+message QueryGenerationsRequest {
+    int64 start_time = 1;
+    int64 end_time = 2;
+    string model = 3;
+    string provider = 4;
+    string workflow_id = 5;
+    string user_id = 6;
+    string session_id = 7;
+    double min_cost_usd = 8;
+    optional bool fallback_used = 9;
+    // 0 means 100, at most 1000; newest first
+    int32 limit = 10;
+    string cursor = 11;
+}
+
+message QueryGenerationsResponse {
+    repeated Generation generations = 1;
+    string next_cursor = 2;
+}
+
+// --- Scores ---
+
+enum ScoreSource {
+    SCORE_SOURCE_UNSPECIFIED = 0;
+    // a heuristic in code
+    SCORE_SOURCE_AUTOMATED = 1;
+    // a model judging another model's output
+    SCORE_SOURCE_MODEL_JUDGE = 2;
+    // a reviewer
+    SCORE_SOURCE_HUMAN = 3;
+    // the end user, e.g. a thumbs up
+    SCORE_SOURCE_USER_FEEDBACK = 4;
+}
+
+// A quality signal about a trace, or one of its spans or generations
+message Score {
+    // assigned by the service if empty
+    string score_id = 1;
+    string trace_id = 2;
+    string span_id = 3;
+    // the span id of the generation scored
+    string generation_id = 4;
+    // the quality dimension, e.g. helpfulness or format_valid
+    string name = 5;
+    oneof value {
+        // 0.0 to 1.0 for continuous dimensions
+        double numeric_value = 6;
+        string categorical_value = 7;
+        bool boolean_value = 8;
+    }
+    ScoreSource source = 9;
+    string comment = 10;
+    map<string, string> metadata = 11;
+    int64 timestamp = 12;
+}
+
+message RecordScoreRequest {
+    repeated Score scores = 1;
+}
+
+message RecordScoreResponse {
+    // the ids of the scores recorded, in order
+    repeated string score_ids = 1;
+    repeated string rejected = 2;
+}
+
+message QueryScoresRequest {
+    string trace_id = 1;
+    string name = 2;
+    ScoreSource source = 3;
+    // scores of the traces of this workflow
+    string workflow_id = 4;
+    int64 start_time = 5;
+    int64 end_time = 6;
+    // 0 means 100, at most 1000; newest first
+    int32 limit = 7;
+    string cursor = 8;
+}
+
+// The scores of one name and source that match a query, summarized
+message ScoreSummary {
+    string name = 1;
+    ScoreSource source = 2;
+    int64 count = 3;
+    // over numeric scores
+    double mean = 4;
+    // over boolean scores: the share that are true
+    double true_ratio = 5;
+    // over categorical scores
+    map<string, int64> categories = 6;
+}
+
+message QueryScoresResponse {
+    repeated Score scores = 1;
+    string next_cursor = 2;
+    // over every matching score, not only this page
+    repeated ScoreSummary summaries = 3;
+}
+
+// --- Cost and budgets ---
+
+message CostReportRequest {
+    int64 start_time = 1;
+    int64 end_time = 2;
+    // model, provider, workflow_id, user_id, session_id, service, or the name of any
+    // attribute of the generations, e.g. team
+    repeated string group_by = 3;
+    // the same dimensions, with the values to keep
+    map<string, string> filters = 4;
+    // none (default), hourly, daily, weekly or monthly
+    string granularity = 5;
+}
+
+message CostBucket {
+    // the start of the period; 0 without a granularity
+    int64 period_start = 1;
+    // the values of the group_by dimensions
+    map<string, string> group = 2;
+    double cost_usd = 3;
+    int64 prompt_tokens = 4;
+    int64 completion_tokens = 5;
+    int64 generations = 6;
+}
+
+message CostReport {
+    double total_cost_usd = 1;
+    int64 prompt_tokens = 2;
+    int64 completion_tokens = 3;
+    int64 generations = 4;
+    // most expensive first within each period
+    repeated CostBucket buckets = 5;
+    // generations whose model has no price, and so count as costing nothing
+    int64 unpriced_generations = 6;
+}
+
+// A spending limit over a period, for the generations that match its filters
+message BudgetAlert {
+    string name = 1;
+    // the same dimensions as cost reports, e.g. {"workflow_id": "support-bot"}; empty means all spend
+    map<string, string> filters = 2;
+    // daily, weekly or monthly (UTC)
+    string period = 3;
+    double limit_usd = 4;
+    // shares of the limit that raise an alert; empty means 0.7, 0.9 and 1.0
+    repeated double thresholds = 5;
+    // receives a JSON POST the first time spend crosses each threshold in a period
+    string webhook_url = 6;
+    int64 created_at = 7;
+    int64 updated_at = 8;
+}
+
+message SetBudgetAlertRequest {
+    // adds the budget, or replaces the one with the same name
+    BudgetAlert alert = 1;
+}
+
+message SetBudgetAlertResponse {
+    BudgetAlert alert = 1;
+}
+
+message GetBudgetStatusRequest {
+    string name = 1;
+}
+
+message BudgetStatus {
+    BudgetAlert alert = 1;
+    int64 period_start = 2;
+    int64 period_end = 3;
+    double spent_usd = 4;
+    // spent_usd / limit_usd
+    double fraction = 5;
+    // the spend at the end of the period if it continues at the rate so far
+    double projected_usd = 6;
+    double projected_fraction = 7;
+    repeated double crossed_thresholds = 8;
+    // ok, warning (a threshold below 1 is crossed) or exceeded
+    string state = 9;
+}
+
+message ListBudgetAlertsRequest {}
+
+message ListBudgetAlertsResponse {
+    repeated BudgetAlert alerts = 1;
+}
+
+message DeleteBudgetAlertRequest {
+    string name = 1;
+}
+
+message DeleteBudgetAlertResponse {
+    bool deleted = 1;
+}
+
+// --- Health ---
+
+message ServiceHealthRequest {
+    // empty means every service seen in the window
+    string service = 1;
+    // how far back to look; 0 means 15 minutes
+    int64 window_ms = 2;
+}
+
+message ServiceHealth {
+    string service = 1;
+    // healthy, degraded, unhealthy, or unknown when no span arrived in the window
+    string status = 2;
+    int64 last_seen = 3;
+    int64 span_count = 4;
+    double error_rate = 5;
+    double p95_duration_ms = 6;
+    // why the status is what it is
+    string reason = 7;
+}
+
+message ServiceHealthResponse {
+    repeated ServiceHealth services = 1;
+}
