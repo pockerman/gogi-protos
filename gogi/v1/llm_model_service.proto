@@ -45,6 +45,39 @@ message LLMRunRequestConfig{
     float frequency_penalty = 7;
     float presence_penalty = 8;
     string system_prompt_name = 9;
+    // how failed calls are retried and which models are tried if the model fails.
+    // If not set, the platform's defaults apply
+    optional FallbackConfig fallback = 10;
+}
+
+// How the platform retries a failed call to a model. Only errors that may go away
+// are retried: rate limits, overloaded or failing servers, timeouts and network
+// errors. The platform caps every value; unset values take the platform's defaults
+message RetryConfig{
+    // how many times a failed call is retried; 0 means it is not retried
+    optional int32 max_retries = 1;
+    // the delay before the first retry; the delay doubles on every retry
+    optional int32 initial_delay_ms = 2;
+    // the longest delay between two retries
+    optional int32 max_delay_ms = 3;
+}
+
+// A model to fall back to
+message FallbackModel{
+    string provider = 1;
+    string model = 2;
+}
+
+// What to do when a call to the model fails, after its retries
+message FallbackConfig{
+    // false turns off falling back, including to the platform's default models.
+    // Not set means true
+    optional bool enabled = 1;
+    // the models to try, in order, if the model fails. They replace the platform's
+    // default models; if empty, the defaults are used
+    repeated FallbackModel models = 2;
+    // how failed calls to each model are retried
+    optional RetryConfig retry = 3;
 }
 
 message LLMRunRequest{
@@ -72,6 +105,8 @@ message LLMStreamChunkResponse{
     optional TokenUsage usage = 4;
     // the tools the model calls, complete; sent with the last chunk
     repeated ToolCall tool_calls = 5;
+    // the provider that answers; differs from the requested one after a fallback
+    string provider = 6;
 }
 
 message ListLLMsRequest{
