@@ -5,6 +5,31 @@ option go_package = "gogi/gogi/v1;gogiv1";
 
 import "gogi/v1/llm_tool.proto";
 
+// A document of the platform's, e.g. a photo uploaded with store_only
+message DocumentReference{
+    string index_name = 1;
+    string document_id = 2;
+}
+
+// An image in a message: its bytes, or a document of the platform's, which the model service reads
+// from the documents service, so a large image need not travel in the request
+message ImageContent{
+    oneof source {
+        bytes data = 1;
+        DocumentReference document = 2;
+    }
+    // image/jpeg, image/png, image/gif or image/webp; worked out from the image if empty
+    string media_type = 3;
+}
+
+// A part of a message's content: text or an image
+message ContentPart{
+    oneof part {
+        string text = 1;
+        ImageContent image = 2;
+    }
+}
+
 // A message sent to an LLM
 message LLMMessage{
     string role = 1;
@@ -13,4 +38,6 @@ message LLMMessage{
     optional string tool_call_id = 4;
     optional string name = 5;
     int64 timestamp = 6;
+    // a user message's content as text and images, in order; content, if set, comes first
+    repeated ContentPart parts = 7;
 }
