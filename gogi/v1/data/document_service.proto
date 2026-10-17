@@ -70,6 +70,10 @@ message IngestDocumentRequest{
     int32 batch_size = 10;
     // keep and register the file without ingesting it, e.g. a video: it gets no chunks or sections
     bool store_only = 11;
+    // replace the content of the existing document of document_id, e.g. after it was edited: its old
+    // chunks and sections are deleted, any ingestion of the old content is stopped, and the new
+    // content is ingested
+    bool replace = 12;
 
 }
 
