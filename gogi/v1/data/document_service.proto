@@ -68,7 +68,9 @@ message IngestDocumentRequest{
     string embeddings_model = 8;
     string embeddings_client = 9;
     int32 batch_size = 10;
-    
+    // keep and register the file without ingesting it, e.g. a video: it gets no chunks or sections
+    bool store_only = 11;
+
 }
 
 // UploadDocument streams a document in parts: the first message carries the document's
@@ -141,6 +143,10 @@ message GetDocumentSectionResponse{
 message DownloadDocumentRequest{
     string index_name = 1;
     string document_id = 2;
+    // download only part of the file, e.g. for a video player seeking: the bytes from offset,
+    // length of them; a length of 0 means to the end of the file
+    int64 offset = 3;
+    int64 length = 4;
 }
 
 // DownloadDocument streams the uploaded file: the document first, then its content in parts
