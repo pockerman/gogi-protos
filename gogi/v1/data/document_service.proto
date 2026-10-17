@@ -19,6 +19,8 @@ message DocumentMetadata{
     string job_id = 10;
     // RFC 3339
     string created_at = 11;
+    // the size of the uploaded file
+    int64 size_bytes = 12;
 }
 
 message ListDocumentsRequest {
@@ -69,6 +71,16 @@ message IngestDocumentRequest{
     
 }
 
+// UploadDocument streams a document in parts: the first message carries the document's
+// details (an IngestDocumentRequest without content), the rest carry its content in order.
+// Use it for documents too large for a single gRPC message.
+message UploadDocumentRequest{
+    oneof part {
+        IngestDocumentRequest info = 1;
+        bytes chunk = 2;
+    }
+}
+
 message IngestDocumentJobResponse{
   string job_id = 1;
   string index_name = 2;
@@ -113,6 +125,7 @@ service DocumentServer{
     rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
     rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
     rpc IngestDocument(IngestDocumentRequest) returns (IngestDocumentJobResponse);
+    rpc UploadDocument(stream UploadDocumentRequest) returns (IngestDocumentJobResponse);
     rpc GetDocumentIngestJob(GetIngestDocumentJobRequest) returns (IngestDocumentJobResponse);
     rpc SearchDocuments(SearchDocumentsRequest) returns (SearchDocumentsResponse);
 
