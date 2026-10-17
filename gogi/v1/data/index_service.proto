@@ -11,6 +11,11 @@ service IndexService {
     rpc DeleteIndexByName(DeleteIndexByNameRequest) returns (DeleteIndexResponse);
     rpc DeleteIndexById(DeleteIndexByIdRequest) returns (DeleteIndexResponse);
     rpc DeleteOwnerIndexes(DeleteOwnerIndexesRequest) returns (DeleteIndexResponse);
+
+    // gives a user a role on an index, or changes the role they have
+    rpc SetIndexMember(SetIndexMemberRequest) returns (IndexResponse);
+    // takes a user off an index; fails with FAILED_PRECONDITION for its last owner
+    rpc RemoveIndexMember(RemoveIndexMemberRequest) returns (IndexResponse);
 }
 
 // Types for the index serice
@@ -25,12 +30,29 @@ message IndexConfig {
 }
 
 
+// what a member of an index may do with it
+enum IndexMemberRole {
+    INDEX_MEMBER_ROLE_UNSPECIFIED = 0;
+    // changes the index's documents and members
+    INDEX_MEMBER_ROLE_OWNER = 1;
+    // reads and searches the index's documents
+    INDEX_MEMBER_ROLE_READER = 2;
+}
+
+message IndexMember {
+    string user = 1;
+    IndexMemberRole role = 2;
+}
+
 message IndexResponse {
     string id = 1;
     string index_name = 2;
+    // the user who created the index; always one of its owners until they are removed
     string owner = 3;
     string created_at = 4;
     string last_updated_at = 5;
+    // everyone with a role on the index, the creator included
+    repeated IndexMember members = 6;
 }
 
 message CreateIndexRequest {
@@ -47,7 +69,10 @@ message GetIndexByIdRequest {
 }
 
 message ListIndexesRequest {
+    // the indexes this user created
     string owner_name = 1;
+    // the indexes this user has any role on; used instead of owner_name when set
+    string member = 2;
 }
 
 message ListIndexesResponse {
@@ -68,4 +93,15 @@ message DeleteOwnerIndexesRequest {
 
 message DeleteIndexResponse {
     bool success = 1;
+}
+
+message SetIndexMemberRequest {
+    string index_name = 1;
+    string user = 2;
+    IndexMemberRole role = 3;
+}
+
+message RemoveIndexMemberRequest {
+    string index_name = 1;
+    string user = 2;
 }
