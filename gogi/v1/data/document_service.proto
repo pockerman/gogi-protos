@@ -95,6 +95,62 @@ message GetIngestDocumentJobRequest{
     string job_id = 1;
 }
 
+// A section of a document: a chapter or a heading within one, or a page of a PDF without an outline.
+// A Markdown file's sections are its headings, a PDF's come from its outline, and a plain text file
+// is a single section.
+message DocumentSection{
+    // 1-based, in the order of the document; identifies the section within its document
+    int32 position = 1;
+    // empty for text before a document's first heading
+    string title = 2;
+    // 1 for a chapter, 2 for a heading within it, and so on
+    int32 level = 3;
+    // the pages of a PDF the section is on; 0 for other documents
+    int32 page_start = 4;
+    int32 page_end = 5;
+}
+
+message ListDocumentSectionsRequest{
+    string index_name = 1;
+    string document_id = 2;
+}
+
+message ListDocumentSectionsResponse{
+    repeated DocumentSection sections = 1;
+}
+
+message GetDocumentSectionRequest{
+    string index_name = 1;
+    string document_id = 2;
+    int32 position = 3;
+    // also return the sections within it, e.g. the headings of a chapter
+    bool include_subsections = 4;
+}
+
+message DocumentSectionContent{
+    DocumentSection section = 1;
+    // the section's own text, without its subsections'
+    string content = 2;
+}
+
+message GetDocumentSectionResponse{
+    // the section, then its subsections in order if they were asked for
+    repeated DocumentSectionContent sections = 1;
+}
+
+message DownloadDocumentRequest{
+    string index_name = 1;
+    string document_id = 2;
+}
+
+// DownloadDocument streams the uploaded file: the document first, then its content in parts
+message DownloadDocumentResponse{
+    oneof part {
+        DocumentMetadata document = 1;
+        bytes chunk = 2;
+    }
+}
+
 message SearchDocumentsRequest{
     string index_name = 1;
     string query = 2;
@@ -128,6 +184,9 @@ service DocumentServer{
     rpc UploadDocument(stream UploadDocumentRequest) returns (IngestDocumentJobResponse);
     rpc GetDocumentIngestJob(GetIngestDocumentJobRequest) returns (IngestDocumentJobResponse);
     rpc SearchDocuments(SearchDocumentsRequest) returns (SearchDocumentsResponse);
+    rpc ListDocumentSections(ListDocumentSectionsRequest) returns (ListDocumentSectionsResponse);
+    rpc GetDocumentSection(GetDocumentSectionRequest) returns (GetDocumentSectionResponse);
+    rpc DownloadDocument(DownloadDocumentRequest) returns (stream DownloadDocumentResponse);
 
 }
 
