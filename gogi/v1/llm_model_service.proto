@@ -31,6 +31,17 @@ service LLMModelServer {
   // Get the status of the LLM
   rpc GetLLMStatus(GetLLMStatusRequest) returns (LLMStatusResponse);
 
+  // Embedding models
+  // Register a text embedding model the application hosts behind an OpenAI-compatible
+  // embeddings endpoint; registering a name again replaces it
+  rpc RegisterEmbeddingModel(RegisterEmbeddingModelRequest) returns (EmbeddingModel);
+
+  // List the embedding models the application can use: those gogi runs, OpenAI's, and its own
+  rpc ListEmbeddingModels(ListEmbeddingModelsRequest) returns (ListEmbeddingModelsResponse);
+
+  // Embed texts with an embedding model
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+
 }
 
 
@@ -238,3 +249,56 @@ message TokenUsage {
 
 
  
+
+
+// A text embedding model: one gogi runs, e.g. "bge-small-en-v1.5", OpenAI's
+// "text-embedding-3-small", or one the application registered by its URL
+message EmbeddingModel {
+    string name = 1;
+    // the length of its vectors
+    int32 dimensions = 2;
+    // the most tokens it reads of a text; a document's chunks for it are no longer
+    int32 max_input_tokens = 3;
+    // where the application's own model is; empty for the models gogi provides
+    string url = 4;
+    // the credential the model is called with, e.g. "openai"; empty if it needs none
+    string credential_ref = 5;
+    // whether the application can use it now: false for OpenAI's model until the application
+    // has stored its key as the credential "openai"
+    bool available = 6;
+}
+
+message RegisterEmbeddingModelRequest {
+    // 2 to 63 lowercase letters, digits and dashes, starting with a letter
+    string name = 1;
+    // the base URL of an OpenAI-compatible embeddings endpoint, e.g. "https://models.example.org/v1";
+    // gogi posts to <url>/embeddings
+    string url = 2;
+    // the model's name at the endpoint, if not the name it is registered with
+    string served_name = 3;
+    // names a credential the application stored, sent as a bearer token; empty if none is needed
+    string credential_ref = 4;
+    // the most tokens the model reads of a text; 512 if not given
+    int32 max_input_tokens = 5;
+}
+
+message ListEmbeddingModelsRequest {}
+
+message ListEmbeddingModelsResponse {
+    repeated EmbeddingModel models = 1;
+}
+
+message EmbedRequest {
+    string model = 1;
+    repeated string inputs = 2;
+}
+
+message Embedding {
+    repeated float values = 1;
+}
+
+message EmbedResponse {
+    string model = 1;
+    // one for each input, in the same order
+    repeated Embedding embeddings = 2;
+}
