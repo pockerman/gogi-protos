@@ -21,6 +21,8 @@ message DocumentMetadata{
     string created_at = 11;
     // the size of the uploaded file
     int64 size_bytes = 12;
+    // the models the document is embedded by; none if it is only stored
+    repeated string embedding_models = 13;
 }
 
 message ListDocumentsRequest {
@@ -65,16 +67,29 @@ message IngestDocumentRequest{
     map<string, string> metadata = 5;
     string document_id = 6;
     string chunk_strategy = 7;
-    string embeddings_model = 8;
-    string embeddings_client = 9;
+    reserved 8, 9, 11;
+    reserved "embeddings_model", "embeddings_client", "store_only";
     int32 batch_size = 10;
-    // keep and register the file without ingesting it, e.g. a video: it gets no chunks or sections
-    bool store_only = 11;
     // replace the content of the existing document of document_id, e.g. after it was edited: its old
     // chunks and sections are deleted, any ingestion of the old content is stopped, and the new
-    // content is ingested
+    // content is stored, and ingested if models are named
     bool replace = 12;
+    // the models that embed the document's chunks, each into a collection of the index's of its
+    // own, e.g. "bge-small-en-v1.5"; with none the document is only stored, e.g. a video
+    repeated string embedding_models = 13;
 
+}
+
+// IngestStoredDocument chunks a document already stored in an index and embeds it with the models
+// named, e.g. one stored without models, or one embedded before by other models. What a model
+// embedded of the document before is replaced; what other models embedded is kept
+message IngestStoredDocumentRequest {
+    string index_name = 1;
+    string document_id = 2;
+    // one or more
+    repeated string embedding_models = 3;
+    string chunk_strategy = 4;
+    int32 batch_size = 5;
 }
 
 // UploadDocument streams a document in parts: the first message carries the document's
@@ -165,10 +180,12 @@ message SearchDocumentsRequest{
     string index_name = 1;
     string query = 2;
     int32 top_k = 3;
-    string embeddings_model = 4;
-    string embeddings_client = 5;
+    reserved 4, 5;
+    reserved "embeddings_model", "embeddings_client";
     repeated string document_ids = 6;
     map<string, string> metadata_filter = 7;
+    // the model whose embeddings are searched: only documents it embedded are found
+    string embedding_model = 8;
 }
 
 message DocumentChunk{
@@ -192,6 +209,7 @@ service DocumentServer{
     rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
     rpc IngestDocument(IngestDocumentRequest) returns (IngestDocumentJobResponse);
     rpc UploadDocument(stream UploadDocumentRequest) returns (IngestDocumentJobResponse);
+    rpc IngestStoredDocument(IngestStoredDocumentRequest) returns (IngestDocumentJobResponse);
     rpc GetDocumentIngestJob(GetIngestDocumentJobRequest) returns (IngestDocumentJobResponse);
     rpc SearchDocuments(SearchDocumentsRequest) returns (SearchDocumentsResponse);
     rpc ListDocumentSections(ListDocumentSectionsRequest) returns (ListDocumentSectionsResponse);
